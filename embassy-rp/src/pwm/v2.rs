@@ -200,7 +200,7 @@ impl<'a, T: Slice> PwmFreeRunningSlice<'a, T> {
             }
         }
 
-        let (div, top) = self.calculate_div_and_top(freq_hz);
+        let (div, top) = self.calculate_div_and_top(freq_hz)?;
 
         // If the frequency has changed then we need to recalculate the divider
         // and top values.
@@ -337,7 +337,8 @@ impl<'a, T: Slice> PwmFreeRunningSlice<'a, T> {
     //     (div, top)
     // }
 
-    fn calculate_div_and_top(&mut self, freq_hz: u32) -> (u32, u32) {
+    fn calculate_div_and_top(&mut self, freq_hz: u32) -> Result<(u32, u32), PwmError> {
+        let freq_hz_u32 = freq_hz;
         let freq_hz = freq_hz as f32;
 
         const TOP_MAX: f32 = 65534.0;
@@ -355,9 +356,11 @@ impl<'a, T: Slice> PwmFreeRunningSlice<'a, T> {
         }
 
         if period <= 1.0 {
-            panic!("Frequency below is too high ...");
+            debug!("Frequency below is too high ...");
+            return Err(PwmError::FrequencyOutOfRange(freq_hz_u32));
         } else if div > DIV_MAX {
-            panic!("Frequency below is too low ...");
+            debug!("Frequency below is too low ...");
+            return Err(PwmError::FrequencyOutOfRange(freq_hz_u32));
         }
 
         let top = (period - 1.0).round() as u32;
@@ -374,7 +377,7 @@ impl<'a, T: Slice> PwmFreeRunningSlice<'a, T> {
             out
         );
 
-        (div, top)
+        Ok((div, top))
     }
 
     /*void SetPwmFreq(float freq) {
@@ -417,6 +420,20 @@ impl<'a, T: Slice> PwmFreeRunningSlice<'a, T> {
     /// value between 0.0 and 100.0. Defaults to 0.0.
     pub fn set_duty_cycle(&mut self, channel: Channel, duty: f32) -> Result<(), PwmError> {
         self.reconfigure(channel, self.frequency_hz, duty, self.phase_correct)
+    }
+
+    /// Sets the frequency for this channel. The frequency must be >= 7.5Hz
+    /// and <= the system clock speed. The `div` and `top` is then calculated using
+    /// [`PwmFreeRunningSlice::calculate_div_and_top`] method. If an invalid frequency
+    /// is provided,[`PwmError::FrequencyOutOfRange`] will be returned. If the specified
+    /// channel is not configured with duty cycle, [`PwmError::ChannelNotConfigured`]
+    /// will be returned.
+    pub fn set_frequency(&mut self, channel: Channel, freq_hz: u32) -> Result<(), PwmError> {
+        let duty = match channel {
+            Channel::A => self.duty_a.ok_or_else(|| PwmError::ChannelNotConfigured(Channel::A))?,
+            Channel::B => self.duty_b.ok_or_else(|| PwmError::ChannelNotConfigured(Channel::B))?,
+        };
+        self.reconfigure(channel, freq_hz, duty, self.phase_correct)
     }
 
     /// Sets whether or not the specified channel should be inverted or not.
