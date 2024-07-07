@@ -277,7 +277,7 @@ impl<'a, T: Slice> PwmFreeRunningSlice<'a, T> {
             return Err(PwmError::ChannelNotConfigured(channel));
         }
 
-        if freq_hz == self.frequency_hz && phase_correct == self.phase_correct {
+        if freq_hz != self.frequency_hz || phase_correct != self.phase_correct {
             return Ok(true);
         }
 
