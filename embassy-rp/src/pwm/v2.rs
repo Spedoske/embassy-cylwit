@@ -670,11 +670,10 @@ pub fn enable_pwm_slices(slices: impl FnOnce(&mut SliceMask) -> &mut SliceMask) 
 }
 
 /// Disable multiple PWM slices simultaneously.
-/// TODO: Implement this function.
 pub fn disable_pwm_slices(slices: impl FnOnce(&mut SliceMask) -> &mut SliceMask) {
     let mut mask = SliceMask::default();
     slices(&mut mask);
-    todo!("Negate the current mask with the selected slices");
+    crate::pac::PWM.en().write_clear(|w| w.0 = mask.mask);
 }
 
 /// Mask of PWM slice numbers used for enabling or disabling multiple slices
