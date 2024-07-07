@@ -4,7 +4,7 @@ use embassy_hal_internal::PeripheralRef;
 use embassy_time::Timer;
 use embedded_hal_1::pwm::ErrorKind;
 use num_traits::float::FloatCore;
-use rp_pac::pwm::regs::{ChCtr, ChTop};
+use rp_pac::pwm::regs::{ChCtr, ChDiv, ChTop};
 
 use super::builder::{DivMode, PwmBuilder, SliceConfig};
 use super::Slice;
@@ -214,10 +214,7 @@ impl<'a, T: Slice> PwmFreeRunningSlice<'a, T> {
             self.top = top;
 
             // Update the DIV register with the new divider value.
-            self.inner.regs().div().write_set(|w| {
-                w.set_int((div >> 4) as u8);
-                w.set_frac((div & 0xF) as u8);
-            });
+            self.inner.regs().div().write_value(ChDiv(div & 0xFFF));
             // Update the TOP register with the new top (wrap) value.
             self.inner.regs().top().write_value(ChTop(top));
 
